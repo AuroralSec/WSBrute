@@ -827,12 +827,12 @@ class BruteForce:
 
         elapsed = time.time() - self.start_time
         if self.found_password:
-            print(f"\n{Colors.OKGREEN}✓ Password found: {self.found_password}{Colors.ENDC}")
+            print(f"\n{Colors.OKGREEN}Password found: {self.found_password}{Colors.ENDC}")
             print(f"{Colors.OKGREEN}Time elapsed: {elapsed:.2f} seconds{Colors.ENDC}")
             self._save_result(self.found_password, elapsed)
             return self.found_password
         else:
-            print(f"\n{Colors.FAIL}✗ No password found{Colors.ENDC}")
+            print(f"\n{Colors.FAIL}No password found{Colors.ENDC}")
             print(f"{Colors.FAIL}Time elapsed: {elapsed:.2f} seconds{Colors.ENDC}")
             self._save_result(None, elapsed)
             return None
