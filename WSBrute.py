@@ -82,8 +82,11 @@ class ShellStrategy:
         content = response.text
 
         if self.success_regex:
-            if re.search(self.success_regex, content):
-                return True
+            try:
+                if re.search(self.success_regex, content, flags=0):
+                    return True
+            except re.error:
+                pass
 
         if self.success_marker:
             if self.success_marker in content:
@@ -92,7 +95,7 @@ class ShellStrategy:
                 decoded = base64.b64decode(content, validate=True).decode(errors='ignore')
                 if self.success_marker in decoded:
                     return True
-            except:
+            except Exception:
                 pass
 
         if baseline_length > 0:
@@ -138,7 +141,7 @@ class GodzillaStrategy(ShellStrategy):
             decoded = base64.b64decode(text, validate=True)
             if len(decoded) > 0 and len(decoded) < len(text) * 0.7:
                 return True
-        except:
+        except Exception:
             pass
         if len(content) < 200:
             return True
@@ -175,7 +178,7 @@ class BehinderStrategy(ShellStrategy):
             decoded = base64.b64decode(text, validate=True)
             if len(decoded) > 0 and len(decoded) < len(text) * 0.7:
                 return True
-        except:
+        except Exception:
             pass
         if len(content) < 200:
             return True
@@ -396,7 +399,7 @@ class BruteForce:
             decoded = base64.b64decode(text, validate=True)
             if len(decoded) > 0:
                 return True
-        except:
+        except Exception:
             pass
         if len(text) < 200 and '\x00' in text:
             return True
@@ -508,7 +511,7 @@ class BruteForce:
                 timeout=5,
                 verify=self.ssl_verify
             )
-        except:
+        except Exception:
             pass
 
         for name, strategy in strategies:
@@ -725,7 +728,8 @@ class BruteForce:
         """保存恢复数据"""
         resume_file = self._get_resume_file()
         try:
-            with open(resume_file, "w") as f:
+            fd = os.open(resume_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
                 json.dump({
                     "line": line,
                     "url": self.url,
@@ -772,9 +776,9 @@ class BruteForce:
         if self.proxy:
             print(f"{Colors.OKBLUE}Proxy: {self.proxy}{Colors.ENDC}")
         if self.cookie:
-            print(f"{Colors.OKBLUE}Cookie: {self.cookie}{Colors.ENDC}")
+            print(f"{Colors.OKBLUE}Cookie: [SET]{Colors.ENDC}")
         if self.headers:
-            print(f"{Colors.OKBLUE}Headers: {self.headers}{Colors.ENDC}")
+            print(f"{Colors.OKBLUE}Headers: [{len(self.headers)} custom header(s)]{Colors.ENDC}")
         if self.shell_type:
             print(f"{Colors.OKBLUE}Shell type: {self.shell_type}{Colors.ENDC}")
 
@@ -849,7 +853,7 @@ def main():
     parser.add_argument("-p", "--password-file", default="ShellPwd.txt",
                         help="Password dictionary file (default: ShellPwd.txt)")
     parser.add_argument("-t", "--threads", type=int, default=10,
-                        help="Number of threads (default: 10)")
+                        help="Number of threads (default: 10, max: 100)")
     parser.add_argument("-d", "--delay", type=float, default=0,
                         help="Delay between requests in seconds (default: 0)")
     parser.add_argument("--waf-bypass", type=int, default=1,
@@ -885,6 +889,21 @@ def main():
                         help="Enable debug logging")
 
     args = parser.parse_args()
+
+    if args.threads < 1 or args.threads > 100:
+        print(f"{Colors.FAIL}Thread count must be between 1 and 100{Colors.ENDC}")
+        return
+
+    if args.waf_bypass < 1 or args.waf_bypass > 10:
+        print(f"{Colors.FAIL}WAF bypass mode must be between 1 and 10{Colors.ENDC}")
+        return
+
+    if args.success_regex:
+        try:
+            re.compile(args.success_regex)
+        except re.error as e:
+            print(f"{Colors.FAIL}Invalid success regex pattern: {e}{Colors.ENDC}")
+            return
 
     if not os.path.exists(args.password_file):
         print(f"{Colors.FAIL}Password file not found: {args.password_file}{Colors.ENDC}")
